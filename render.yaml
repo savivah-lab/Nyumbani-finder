@@ -48,12 +48,6 @@ services:
         value: sandbox      # change to "production" when you go live with a real shortcode
       - key: MPESA_SHORTCODE
         value: "174379"
-      - key: MPESA_CONSUMER_KEY
-        sync: false
-      - key: MPESA_CONSUMER_SECRET
-        sync: false
-      - key: MPESA_PASSKEY
-        sync: false
       # TESTING ONLY: lets you "simulate" M-Pesa payments with no real money while you have no Daraja keys.
       # With this true, ANYONE can unlock numbers for free. Set to false before launch.
       - key: ALLOW_MOCK_PAYMENTS
