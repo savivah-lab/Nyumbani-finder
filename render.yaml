@@ -1,0 +1,89 @@
+# Render Blueprint: one-click deploy of API + website + database from this repo.
+# Dashboard -> New -> Blueprint -> pick this repo. Render will ask for the values marked "sync: false".
+
+databases:
+  - name: nyumbani-db
+    databaseName: nyumbani
+    user: nyumbani
+    plan: free   # NOTE: free Postgres databases expire. Upgrade to a paid plan before real users/data.
+
+services:
+  # ---------- FastAPI backend ----------
+  - type: web
+    name: nyumbani-api
+    runtime: python
+    rootDir: backend
+    plan: free   # free web services sleep after inactivity (first request is slow). Upgrade for production.
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nyumbani-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MPESA_CALLBACK_SECRET
+        generateValue: true
+      # URL of the website below, e.g. https://nyumbani-web.onrender.com (comma-separate to allow several)
+      - key: CORS_ORIGINS
+        sync: false
+      # Public URL of THIS api service, e.g. https://nyumbani-api.onrender.com (needed for M-Pesa callbacks)
+      - key: MPESA_CALLBACK_BASE_URL
+        sync: false
+      # Photo storage. Required: Render's disk is wiped on every deploy.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # M-Pesa Daraja. Leave blank until you have credentials.
+      - key: MPESA_ENV
+        value: sandbox      # change to "production" when you go live with a real shortcode
+      - key: MPESA_SHORTCODE
+        value: "174379"
+      - key: MPESA_CONSUMER_KEY
+        sync: false
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+      - key: MPESA_PASSKEY
+        sync: false
+      # TESTING ONLY: lets you "simulate" M-Pesa payments with no real money while you have no Daraja keys.
+      # With this true, ANYONE can unlock numbers for free. Set to false before launch.
+      - key: ALLOW_MOCK_PAYMENTS
+        value: "true"
+      # First admin account (created on startup).
+      - key: ADMIN_PHONE
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: LISTING_FEE
+        value: "250"
+      - key: UNLOCK_FEE
+        value: "30"
+      - key: LISTING_EXPIRY_DAYS
+        value: "30"
+
+  # ---------- React website ----------
+  - type: web
+    name: nyumbani-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      # URL of the API service above, no trailing slash. The site must be REBUILT if this changes.
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite     # lets /search, /listing/3 etc. work on refresh
+        source: /*
+        destination: /index.html
